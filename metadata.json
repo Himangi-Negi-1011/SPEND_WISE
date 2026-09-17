@@ -1,0 +1,6 @@
+{
+  "name": "SpendWise",
+  "description": "Personal expense tracker and financial risk detector with AI spending intelligence, budget monitoring, unusual spending signals, and interactive financial reports.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
