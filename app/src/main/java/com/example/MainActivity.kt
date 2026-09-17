@@ -64,6 +64,8 @@ fun SpendWiseApp(viewModel: SpendWiseViewModel) {
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
     val categoryFilter by viewModel.categoryFilter.collectAsStateWithLifecycle()
     val typeFilter by viewModel.typeFilter.collectAsStateWithLifecycle()
+    val timeHorizon by viewModel.timeHorizon.collectAsStateWithLifecycle()
+    val selectedDayIndex by viewModel.selectedDayIndex.collectAsStateWithLifecycle()
 
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val coroutineScope = rememberCoroutineScope()
@@ -100,18 +102,45 @@ fun SpendWiseApp(viewModel: SpendWiseViewModel) {
     }
 
     if (currentScreen == SpendWiseScreen.AUTH) {
+        val authLoading by viewModel.authLoading.collectAsState()
+        val authError by viewModel.authError.collectAsState()
+
         AuthScreen(
-            onAuthSuccess = {
-                if (userProfile.isOnboarded) {
-                    viewModel.navigateTo(SpendWiseScreen.DASHBOARD)
-                } else {
-                    viewModel.navigateTo(SpendWiseScreen.ONBOARDING)
+            isLoading = authLoading,
+            errorMessage = authError,
+            onSignInEmail = { email, password ->
+                viewModel.signInWithClerk(email, password) {
+                    if (userProfile.isOnboarded) {
+                        viewModel.navigateTo(SpendWiseScreen.DASHBOARD)
+                    } else {
+                        viewModel.navigateTo(SpendWiseScreen.ONBOARDING)
+                    }
+                }
+            },
+            onSignUpEmail = { email, password, first, last ->
+                viewModel.signUpWithClerk(email, password, first, last) {
+                    if (userProfile.isOnboarded) {
+                        viewModel.navigateTo(SpendWiseScreen.DASHBOARD)
+                    } else {
+                        viewModel.navigateTo(SpendWiseScreen.ONBOARDING)
+                    }
+                }
+            },
+            onSignInSocial = { provider ->
+                viewModel.signInWithSocial(provider) {
+                    if (userProfile.isOnboarded) {
+                        viewModel.navigateTo(SpendWiseScreen.DASHBOARD)
+                    } else {
+                        viewModel.navigateTo(SpendWiseScreen.ONBOARDING)
+                    }
                 }
             },
             onContinueGuest = {
-                viewModel.seedDemoData()
-                viewModel.navigateTo(SpendWiseScreen.DASHBOARD)
-            }
+                viewModel.signInAsVerifiedDemo {
+                    viewModel.navigateTo(SpendWiseScreen.DASHBOARD)
+                }
+            },
+            onClearError = { viewModel.clearAuthError() }
         )
         return
     }
@@ -297,14 +326,32 @@ fun SpendWiseApp(viewModel: SpendWiseViewModel) {
                         riskAlerts = riskAlerts,
                         aiInsights = aiInsights,
                         budgets = budgets,
+                        goals = goals,
                         recentTransactions = transactions,
                         savingOpportunities = savingOpportunities,
                         detailedHealthOverview = detailedHealthOverview,
+                        userProfile = userProfile,
                         currencySymbol = userProfile.currencySymbol,
+                        timeHorizon = timeHorizon,
+                        onTimeHorizonChange = { viewModel.setTimeHorizon(it) },
+                        selectedDayIndex = selectedDayIndex,
+                        onSelectDayIndex = { viewModel.setSelectedDayIndex(it) },
                         onNavigate = { viewModel.navigateTo(it) },
                         onAddTransaction = {
                             editingTx = null
                             showAddEditTxDialog = true
+                        },
+                        onQuickAddExpense = { merchant, amount, category ->
+                            viewModel.quickAddExpense(merchant, amount, category)
+                        },
+                        onResolveAlert = { alertId ->
+                            viewModel.resolveRiskAlert(alertId)
+                        },
+                        onApplyOpportunity = { opp ->
+                            viewModel.applySavingOpportunity(opp)
+                        },
+                        onContributeGoal = { goalId, amount ->
+                            viewModel.quickContributeToGoal(goalId, amount)
                         },
                         onOpenCsvImport = { showCsvImportDialog = true },
                         onOpenDiagnostics = { showHealthDiagnosticsDialog = true }
@@ -368,7 +415,8 @@ fun SpendWiseApp(viewModel: SpendWiseViewModel) {
                     )
                     SpendWiseScreen.RISK -> RiskDetectionScreen(
                         riskAlerts = riskAlerts,
-                        currencySymbol = userProfile.currencySymbol
+                        currencySymbol = userProfile.currencySymbol,
+                        onResolveAlert = { alertId -> viewModel.resolveRiskAlert(alertId) }
                     )
                     SpendWiseScreen.INSIGHTS -> AiInsightsScreen(
                         aiInsights = aiInsights,
@@ -386,7 +434,8 @@ fun SpendWiseApp(viewModel: SpendWiseViewModel) {
                         profile = userProfile,
                         onUpdateProfile = { viewModel.updateProfile(it) },
                         onSeedDemoData = { viewModel.seedDemoData() },
-                        onClearAllData = { viewModel.clearAllData() }
+                        onClearAllData = { viewModel.clearAllData() },
+                        onSignOut = { viewModel.signOutClerk() }
                     )
                     else -> Unit
                 }

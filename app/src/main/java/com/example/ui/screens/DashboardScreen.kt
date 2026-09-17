@@ -1,5 +1,6 @@
 package com.example.ui.screens
 
+import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -12,7 +13,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -31,6 +32,7 @@ import com.example.ui.components.SimpleSpendingBarChart
 import com.example.ui.components.SpendingHealthCard
 import com.example.ui.theme.*
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
@@ -40,18 +42,29 @@ fun DashboardScreen(
     riskAlerts: List<RiskAlert>,
     aiInsights: List<AiInsight>,
     budgets: List<BudgetEntity>,
+    goals: List<GoalEntity> = emptyList(),
     recentTransactions: List<TransactionEntity>,
     savingOpportunities: List<SavingOpportunity>,
     detailedHealthOverview: DetailedHealthOverview,
+    userProfile: UserProfile = UserProfile(),
     currencySymbol: String,
+    timeHorizon: String = "THIS_MONTH",
+    onTimeHorizonChange: (String) -> Unit = {},
+    selectedDayIndex: Int? = null,
+    onSelectDayIndex: (Int?) -> Unit = {},
     onNavigate: (SpendWiseScreen) -> Unit,
     onAddTransaction: () -> Unit,
+    onQuickAddExpense: (merchant: String, amount: Double, category: String) -> Unit = { _, _, _ -> },
+    onResolveAlert: (String) -> Unit = {},
+    onApplyOpportunity: (SavingOpportunity) -> Unit = {},
+    onContributeGoal: (goalId: String, amount: Double) -> Unit = { _, _ -> },
     onOpenCsvImport: () -> Unit,
     onOpenDiagnostics: () -> Unit
 ) {
     val dateFormat = SimpleDateFormat("MMM d", Locale.US)
+    var appliedToastMessage by remember { mutableStateOf<String?>(null) }
 
-    // Calculate last 7 days daily spending
+    // 7-day daily spending data
     val now = System.currentTimeMillis()
     val dayMillis = 24L * 60L * 60L * 1000L
     val dailyExpenses = (6 downTo 0).map { daysAgo ->
@@ -62,6 +75,15 @@ fun DashboardScreen(
             .sumOf { it.amount }
         Pair(dayLabel, amount)
     }
+
+    // Days remaining in the month and daily velocity
+    val cal = Calendar.getInstance()
+    val currentDayOfMonth = cal.get(Calendar.DAY_OF_MONTH)
+    val maxDaysInMonth = cal.getActualMaximum(Calendar.DAY_OF_MONTH)
+    val daysRemaining = (maxDaysInMonth - currentDayOfMonth).coerceAtLeast(1)
+    val dailyBurnRate = if (currentDayOfMonth > 0) analytics.totalExpense / currentDayOfMonth else 0.0
+    val projectedMonthEndSpend = analytics.totalExpense + (dailyBurnRate * daysRemaining)
+    val projectedSavings = (analytics.totalIncome - projectedMonthEndSpend).coerceAtLeast(0.0)
 
     Scaffold(
         floatingActionButton = {
@@ -86,7 +108,7 @@ fun DashboardScreen(
         ) {
             item { Spacer(modifier = Modifier.height(2.dp)) }
 
-            // 1. Executive User Profile & Command Center Bar
+            // 1. Clerk Identity & Live Security Header
             item {
                 Surface(
                     shape = RoundedCornerShape(14.dp),
@@ -107,33 +129,128 @@ fun DashboardScreen(
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(36.dp)
+                                    .size(38.dp)
                                     .clip(CircleShape)
                                     .background(EmeraldContainer)
                                     .border(1.dp, EmeraldPrimary.copy(alpha = 0.6f), CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text("AR", fontWeight = FontWeight.Bold, color = EmeraldLight, fontSize = 12.sp)
+                                Text(
+                                    text = userProfile.avatarInitials,
+                                    fontWeight = FontWeight.Bold,
+                                    color = EmeraldLight,
+                                    fontSize = 13.sp
+                                )
                             }
                             Column {
-                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                    Text("Alex Rivera", fontWeight = FontWeight.Bold, color = TextPrimary, fontSize = 14.sp)
-                                    Surface(shape = RoundedCornerShape(4.dp), color = EmeraldContainer.copy(alpha = 0.5f)) {
-                                        Text("CLERK VERIFIED", color = EmeraldLight, fontSize = 9.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp))
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Text(
+                                        text = userProfile.name,
+                                        fontWeight = FontWeight.Bold,
+                                        color = TextPrimary,
+                                        fontSize = 14.sp
+                                    )
+                                    Surface(
+                                        shape = RoundedCornerShape(4.dp),
+                                        color = EmeraldContainer.copy(alpha = 0.5f)
+                                    ) {
+                                        Text(
+                                            text = if (userProfile.isDemoMode) "DEMO ACTIVE" else "CLERK VERIFIED",
+                                            color = EmeraldLight,
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
+                                        )
                                     }
                                 }
-                                Text("Session active • Enterprise Shield", color = TextMuted, fontSize = 11.sp)
+                                Text(
+                                    text = "${userProfile.authProvider} • ${userProfile.email}",
+                                    color = TextMuted,
+                                    fontSize = 11.sp
+                                )
                             }
                         }
 
-                        IconButton(onClick = { onNavigate(SpendWiseScreen.SETTINGS) }) {
-                            Icon(Icons.Default.Tune, contentDescription = "Preferences", tint = TextSecondary, modifier = Modifier.size(20.dp))
+                        IconButton(
+                            onClick = { onNavigate(SpendWiseScreen.SETTINGS) },
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Tune,
+                                contentDescription = "Settings",
+                                tint = TextSecondary,
+                                modifier = Modifier.size(18.dp)
+                            )
                         }
                     }
                 }
             }
 
-            // 2. Spending Health Indicator Card (Clickable to view transparent diagnostics)
+            // 2. Interactive Time Horizon Bar
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    val horizons = listOf(
+                        "THIS_MONTH" to "This Month",
+                        "LAST_30_DAYS" to "Last 30 Days",
+                        "THIS_WEEK" to "This Week"
+                    )
+                    horizons.forEach { (key, label) ->
+                        val isSelected = timeHorizon == key
+                        Surface(
+                            shape = RoundedCornerShape(20.dp),
+                            color = if (isSelected) EmeraldContainer else DarkSurfaceCard,
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                if (isSelected) EmeraldPrimary else DarkBorder
+                            ),
+                            modifier = Modifier.clickable { onTimeHorizonChange(key) }
+                        ) {
+                            Text(
+                                text = label,
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                color = if (isSelected) EmeraldLight else TextSecondary
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Applied feedback banner
+            if (appliedToastMessage != null) {
+                item {
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = EmeraldContainer.copy(alpha = 0.8f),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, EmeraldPrimary),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Icon(Icons.Default.CheckCircle, contentDescription = null, tint = EmeraldLight, modifier = Modifier.size(16.dp))
+                                Text(appliedToastMessage!!, color = EmeraldLight, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            }
+                            IconButton(onClick = { appliedToastMessage = null }, modifier = Modifier.size(20.dp)) {
+                                Icon(Icons.Default.Close, contentDescription = null, tint = EmeraldLight, modifier = Modifier.size(14.dp))
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 3. Spending Health Indicator Card (Clickable to view transparent diagnostics)
             item {
                 Box(modifier = Modifier.clickable { onOpenDiagnostics() }) {
                     SpendingHealthCard(
@@ -146,7 +263,7 @@ fun DashboardScreen(
                 }
             }
 
-            // 3. High Priority Risk Alert Banner (if any)
+            // 4. Actionable Risk Alert Banner (With 1-Tap Inline Resolution!)
             if (riskAlerts.isNotEmpty()) {
                 item {
                     val topAlert = riskAlerts.first()
@@ -154,37 +271,62 @@ fun DashboardScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(14.dp))
-                            .border(1.dp, RedRisk.copy(alpha = 0.5f), RoundedCornerShape(14.dp))
-                            .clickable { onNavigate(SpendWiseScreen.RISK) },
+                            .border(1.dp, RedRisk.copy(alpha = 0.5f), RoundedCornerShape(14.dp)),
                         colors = CardDefaults.cardColors(containerColor = RedContainer.copy(alpha = 0.25f))
                     ) {
-                        Row(
-                            modifier = Modifier.padding(14.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Icon(Icons.Default.WarningAmber, contentDescription = null, tint = RedRisk)
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = "Risk Signal Detected",
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFFFECACA),
-                                    style = MaterialTheme.typography.titleSmall
-                                )
-                                Text(
-                                    text = "${topAlert.merchant}: ${topAlert.reason}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = TextSecondary,
-                                    maxLines = 2
-                                )
+                        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Icon(Icons.Default.WarningAmber, contentDescription = null, tint = RedRisk)
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "Risk Signal: ${topAlert.merchant}",
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFFFECACA),
+                                        style = MaterialTheme.typography.titleSmall
+                                    )
+                                    Text(
+                                        text = topAlert.reason,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = TextSecondary,
+                                        maxLines = 2
+                                    )
+                                }
                             }
-                            Icon(Icons.Default.ChevronRight, contentDescription = null, tint = RedRisk)
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.End,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                TextButton(
+                                    onClick = {
+                                        onResolveAlert(topAlert.id)
+                                        appliedToastMessage = "Alert for ${topAlert.merchant} resolved and marked safe."
+                                    },
+                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                                ) {
+                                    Icon(Icons.Default.Check, contentDescription = null, tint = EmeraldLight, modifier = Modifier.size(14.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("Resolve & Mark Safe", color = EmeraldLight, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                }
+                                Spacer(modifier = Modifier.width(6.dp))
+                                TextButton(
+                                    onClick = { onNavigate(SpendWiseScreen.RISK) },
+                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                                ) {
+                                    Text("Risk Center →", color = RedRisk, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                }
+                            }
                         }
                     }
                 }
             }
 
-            // 4. Metric Cards Grid (2x2)
+            // 5. Metric Cards Grid (2x2)
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Row(
@@ -230,7 +372,91 @@ fun DashboardScreen(
                 }
             }
 
-            // 5. Executive Quick Action Command Chips
+            // 6. Quick-Log Expense Bar (Instant 1-Tap Entry for Fast Testing)
+            item {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .border(1.dp, DarkBorder, RoundedCornerShape(14.dp)),
+                    colors = CardDefaults.cardColors(containerColor = DarkSurfaceCard)
+                ) {
+                    Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Quick Log Expense",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = TextPrimary
+                            )
+                            Text(
+                                text = "1-Tap Entry",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = TextMuted
+                            )
+                        }
+
+                        LazyRow(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            item {
+                                QuickLogChip(
+                                    label = "+$currencySymbol 15 Lunch",
+                                    icon = "☕",
+                                    onClick = {
+                                        onQuickAddExpense("Artisan Cafe Lunch", 15.0, "Food")
+                                        appliedToastMessage = "Logged: $currencySymbol 15 Lunch (Food)"
+                                    }
+                                )
+                            }
+                            item {
+                                QuickLogChip(
+                                    label = "+$currencySymbol 45 Groceries",
+                                    icon = "🛒",
+                                    onClick = {
+                                        onQuickAddExpense("Trader Joe's Market", 45.0, "Food")
+                                        appliedToastMessage = "Logged: $currencySymbol 45 Groceries (Food)"
+                                    }
+                                )
+                            }
+                            item {
+                                QuickLogChip(
+                                    label = "+$currencySymbol 25 Uber",
+                                    icon = "🚗",
+                                    onClick = {
+                                        onQuickAddExpense("Uber Mobility Ride", 25.0, "Transport")
+                                        appliedToastMessage = "Logged: $currencySymbol 25 Uber (Transport)"
+                                    }
+                                )
+                            }
+                            item {
+                                QuickLogChip(
+                                    label = "+$currencySymbol 12 Streaming",
+                                    icon = "📺",
+                                    onClick = {
+                                        onQuickAddExpense("Digital Stream Pro", 12.0, "Subscriptions")
+                                        appliedToastMessage = "Logged: $currencySymbol 12 Subscriptions"
+                                    }
+                                )
+                            }
+                            item {
+                                QuickLogChip(
+                                    label = "+ Custom Entry",
+                                    icon = "✏️",
+                                    onClick = onAddTransaction
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 7. Executive Navigation Action Chips
             item {
                 LazyRow(
                     modifier = Modifier.fillMaxWidth(),
@@ -247,7 +473,7 @@ fun DashboardScreen(
                     item {
                         ActionChip(
                             icon = Icons.Default.TrackChanges,
-                            label = "Goals",
+                            label = "Goals (${goals.size})",
                             color = EmeraldLight,
                             onClick = { onNavigate(SpendWiseScreen.GOALS) }
                         )
@@ -262,24 +488,164 @@ fun DashboardScreen(
                     }
                     item {
                         ActionChip(
+                            icon = Icons.Default.Analytics,
+                            label = "Spending Analysis",
+                            color = BlueInfo,
+                            onClick = { onNavigate(SpendWiseScreen.ANALYSIS) }
+                        )
+                    }
+                    item {
+                        ActionChip(
                             icon = Icons.Default.FileUpload,
                             label = "Import CSV",
                             color = TealSecondary,
                             onClick = onOpenCsvImport
                         )
                     }
-                    item {
-                        ActionChip(
-                            icon = Icons.Default.Analytics,
-                            label = "Analysis",
-                            color = BlueInfo,
-                            onClick = { onNavigate(SpendWiseScreen.ANALYSIS) }
+                }
+            }
+
+            // 8. Interactive 7-Day Velocity Bar Chart
+            item {
+                SimpleSpendingBarChart(
+                    dailyExpenses = dailyExpenses,
+                    currencySymbol = currencySymbol,
+                    selectedDayIndex = selectedDayIndex,
+                    onSelectDay = { onSelectDayIndex(it) }
+                )
+            }
+
+            // 9. Cashflow Velocity & Burn Rate Card
+            item {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .border(1.dp, DarkBorder, RoundedCornerShape(16.dp)),
+                    colors = CardDefaults.cardColors(containerColor = DarkSurfaceCard)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Burn Rate & Cashflow Runway",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = TextPrimary
+                            )
+                            Surface(shape = RoundedCornerShape(6.dp), color = DarkSurfaceElevated) {
+                                Text(
+                                    text = "$daysRemaining days remaining",
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = TextSecondary
+                                )
+                            }
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column {
+                                Text("Daily Burn Rate", style = MaterialTheme.typography.labelSmall, color = TextMuted)
+                                Text(
+                                    text = "$currencySymbol${String.format(Locale.US, "%.1f", dailyBurnRate)}/day",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = TextPrimary
+                                )
+                            }
+                            Column(horizontalAlignment = Alignment.End) {
+                                Text("Projected Month-End", style = MaterialTheme.typography.labelSmall, color = TextMuted)
+                                Text(
+                                    text = "$currencySymbol${String.format(Locale.US, "%.0f", projectedMonthEndSpend)}",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (projectedMonthEndSpend > userProfile.targetBudget) AmberWarning else EmeraldLight
+                                )
+                            }
+                        }
+
+                        LinearProgressIndicator(
+                            progress = { (analytics.totalExpense / (userProfile.targetBudget.coerceAtLeast(100.0))).toFloat().coerceIn(0f, 1f) },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(6.dp)
+                                .clip(RoundedCornerShape(3.dp)),
+                            color = if (analytics.totalExpense > userProfile.targetBudget) RedRisk else EmeraldPrimary,
+                            trackColor = DarkSurfaceElevated
                         )
                     }
                 }
             }
 
-            // 6. Saving Opportunities & Quick Wins
+            // 10. Active Goals Snapshot (With 1-Tap Contribution!)
+            if (goals.isNotEmpty()) {
+                item {
+                    val primaryGoal = goals.first()
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(16.dp))
+                            .border(1.dp, EmeraldPrimary.copy(alpha = 0.35f), RoundedCornerShape(16.dp)),
+                        colors = CardDefaults.cardColors(containerColor = DarkSurfaceCard)
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Text(text = primaryGoal.icon, fontSize = 18.sp)
+                                    Column {
+                                        Text(primaryGoal.title, fontWeight = FontWeight.Bold, color = TextPrimary, fontSize = 14.sp)
+                                        Text("${primaryGoal.progressPercent}% of $currencySymbol${primaryGoal.targetAmount.toInt()}", style = MaterialTheme.typography.labelSmall, color = TextMuted)
+                                    }
+                                }
+                                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    OutlinedButton(
+                                        onClick = {
+                                            onContributeGoal(primaryGoal.id, 50.0)
+                                            appliedToastMessage = "+$currencySymbol 50 deposited to ${primaryGoal.title}!"
+                                        },
+                                        shape = RoundedCornerShape(8.dp),
+                                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, EmeraldPrimary)
+                                    ) {
+                                        Text("+$currencySymbol 50", color = EmeraldLight, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                    }
+                                    IconButton(
+                                        onClick = { onNavigate(SpendWiseScreen.GOALS) },
+                                        modifier = Modifier.size(32.dp)
+                                    ) {
+                                        Icon(Icons.Default.ChevronRight, contentDescription = "View Goals", tint = EmeraldLight)
+                                    }
+                                }
+                            }
+
+                            LinearProgressIndicator(
+                                progress = { (primaryGoal.progressPercent / 100f).coerceIn(0f, 1f) },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(6.dp)
+                                    .clip(RoundedCornerShape(3.dp)),
+                                color = EmeraldPrimary,
+                                trackColor = DarkSurfaceElevated
+                            )
+                        }
+                    }
+                }
+            }
+
+            // 11. Saving Opportunities (Actionable!)
             if (savingOpportunities.isNotEmpty()) {
                 item {
                     Card(
@@ -335,12 +701,23 @@ fun DashboardScreen(
                                             Text(opp.observation, style = MaterialTheme.typography.bodySmall, color = TextSecondary)
                                         }
                                         Spacer(modifier = Modifier.width(8.dp))
-                                        Text(
-                                            text = "$currencySymbol${String.format(Locale.US, "%.0f", opp.potentialMonthlySavings)}",
-                                            fontWeight = FontWeight.Bold,
-                                            color = EmeraldLight,
-                                            fontSize = 14.sp
-                                        )
+                                        Column(horizontalAlignment = Alignment.End) {
+                                            Text(
+                                                text = "$currencySymbol${String.format(Locale.US, "%.0f", opp.potentialMonthlySavings)}",
+                                                fontWeight = FontWeight.Bold,
+                                                color = EmeraldLight,
+                                                fontSize = 14.sp
+                                            )
+                                            TextButton(
+                                                onClick = {
+                                                    onApplyOpportunity(opp)
+                                                    appliedToastMessage = "Optimized budget for ${opp.category}."
+                                                },
+                                                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)
+                                            ) {
+                                                Text("Apply", color = EmeraldLight, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -349,15 +726,7 @@ fun DashboardScreen(
                 }
             }
 
-            // 7. Daily Spending Bar Chart
-            item {
-                SimpleSpendingBarChart(
-                    dailyExpenses = dailyExpenses,
-                    currencySymbol = currencySymbol
-                )
-            }
-
-            // 8. Top Spending Categories with Visual Progress
+            // 12. Top Spending Categories with Visual Progress
             item {
                 Card(
                     modifier = Modifier
@@ -427,7 +796,7 @@ fun DashboardScreen(
                 }
             }
 
-            // 9. Budget Status Snapshot
+            // 13. Category Budgets Snapshot
             item {
                 Card(
                     modifier = Modifier
@@ -498,7 +867,7 @@ fun DashboardScreen(
                 }
             }
 
-            // 10. AI Intelligence Card Highlight
+            // 14. AI Intelligence Card Highlight
             if (aiInsights.isNotEmpty()) {
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -525,7 +894,7 @@ fun DashboardScreen(
                 }
             }
 
-            // 11. Recent Transactions Quick List
+            // 15. Recent Ledger Activity
             item {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -604,6 +973,34 @@ fun DashboardScreen(
             }
 
             item { Spacer(modifier = Modifier.height(60.dp)) }
+        }
+    }
+}
+
+@Composable
+fun QuickLogChip(
+    label: String,
+    icon: String,
+    onClick: () -> Unit
+) {
+    Surface(
+        shape = RoundedCornerShape(10.dp),
+        color = DarkSurfaceElevated,
+        border = androidx.compose.foundation.BorderStroke(1.dp, EmeraldPrimary.copy(alpha = 0.4f)),
+        modifier = Modifier.clickable { onClick() }
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Text(text = icon, fontSize = 14.sp)
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+                color = TextPrimary
+            )
         }
     }
 }

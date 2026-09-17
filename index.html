@@ -1,0 +1,1417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>SpendWise — AI Expense Tracker & Risk Detector</title>
+  <meta name="description" content="Cross-platform personal expense tracker & financial risk detector with AI copilot, budget analytics, and Clerk authentication for Web and Android." />
+  <meta name="theme-color" content="#0B0F19" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --bg-dark: #0B0F19;
+      --bg-card: #111827;
+      --bg-elevated: #1F2937;
+      --border-color: #374151;
+      --border-light: rgba(255, 255, 255, 0.08);
+      --primary: #10B981;
+      --primary-light: #34D399;
+      --primary-dark: #059669;
+      --primary-container: rgba(16, 185, 129, 0.15);
+      --red-risk: #EF4444;
+      --red-container: rgba(239, 68, 68, 0.15);
+      --amber-warning: #F59E0B;
+      --amber-container: rgba(245, 158, 11, 0.15);
+      --blue-info: #3B82F6;
+      --blue-container: rgba(59, 130, 246, 0.15);
+      --text-primary: #F9FAFB;
+      --text-secondary: #9CA3AF;
+      --text-muted: #6B7280;
+      --font-main: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-primary);
+      font-family: var(--font-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding-bottom: 90px;
+    }
+
+    /* Container */
+    .app-container {
+      width: 100%;
+      max-width: 680px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* Vercel & Cross-Platform Header Pill */
+    .platform-banner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.14), rgba(59, 130, 246, 0.09));
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      border-radius: 14px;
+      padding: 12px 16px;
+      font-size: 12px;
+    }
+    .platform-badge {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .vercel-icon {
+      width: 18px;
+      height: 18px;
+      fill: #fff;
+    }
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      background: var(--primary);
+      border-radius: 50%;
+      box-shadow: 0 0 10px var(--primary);
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(1.15); }
+    }
+
+    /* Top Identity Bar */
+    .user-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .user-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .user-avatar {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: var(--primary-container);
+      border: 1.5px solid var(--primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      color: var(--primary-light);
+      font-size: 15px;
+    }
+    .user-details h3 {
+      font-size: 15px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .verified-pill {
+      font-size: 10px;
+      font-weight: 700;
+      background: var(--primary-container);
+      color: var(--primary-light);
+      padding: 2px 6px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .user-details p {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+    .auth-action-btn {
+      background: transparent;
+      border: 1px solid var(--border-color);
+      color: var(--text-secondary);
+      border-radius: 8px;
+      padding: 6px 12px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .auth-action-btn:hover {
+      border-color: var(--primary);
+      color: var(--primary-light);
+    }
+
+    /* Time Horizon Selector */
+    .horizon-selector {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 2px;
+    }
+    .horizon-pill {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      color: var(--text-secondary);
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s;
+    }
+    .horizon-pill.active {
+      background: var(--primary-container);
+      border-color: var(--primary);
+      color: var(--primary-light);
+    }
+
+    /* Toast Notification */
+    .toast-banner {
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(16, 185, 129, 0.2);
+      border: 1px solid var(--primary);
+      border-radius: 10px;
+      padding: 10px 14px;
+      color: var(--primary-light);
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    /* Health Score Card */
+    .health-card {
+      background: linear-gradient(145deg, #111827 0%, #172033 100%);
+      border: 1px solid var(--border-color);
+      border-radius: 18px;
+      padding: 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+    }
+    .health-left h4 {
+      font-size: 12px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .health-score-val {
+      font-size: 38px;
+      font-weight: 800;
+      font-family: var(--font-mono);
+      color: var(--primary-light);
+      line-height: 1.1;
+      margin: 4px 0;
+    }
+    .health-pill {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: var(--primary-container);
+      color: var(--primary-light);
+    }
+    .health-right {
+      text-align: right;
+    }
+    .health-right p {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    .health-right h5 {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-top: 2px;
+    }
+
+    /* Risk Alert Card */
+    .risk-alert-card {
+      background: var(--red-container);
+      border: 1px solid rgba(239, 68, 68, 0.4);
+      border-radius: 14px;
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      transition: all 0.3s;
+    }
+    .risk-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+    .risk-icon {
+      font-size: 20px;
+      color: var(--red-risk);
+    }
+    .risk-body h4 {
+      font-size: 14px;
+      font-weight: 700;
+      color: #FECACA;
+    }
+    .risk-body p {
+      font-size: 12px;
+      color: #D1D5DB;
+      margin-top: 2px;
+      line-height: 1.4;
+    }
+    .risk-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+    .btn-resolve {
+      background: var(--primary);
+      border: none;
+      color: #0B0F19;
+      font-weight: 700;
+      font-size: 12px;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      transition: opacity 0.2s;
+    }
+    .btn-resolve:hover {
+      opacity: 0.9;
+    }
+
+    /* Metric Grid (2x2) */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .metric-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 14px;
+      padding: 14px;
+    }
+    .metric-title {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+    .metric-amount {
+      font-size: 20px;
+      font-weight: 800;
+      font-family: var(--font-mono);
+      color: var(--text-primary);
+    }
+    .metric-sub {
+      font-size: 11px;
+      color: var(--primary-light);
+      margin-top: 4px;
+      font-weight: 600;
+    }
+    .metric-sub.negative {
+      color: var(--red-risk);
+    }
+
+    /* Quick Log Expense Bar */
+    .quick-log-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 14px;
+      padding: 14px;
+    }
+    .quick-log-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .quick-log-header h4 {
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .quick-log-header span {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+    .quick-log-buttons {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+    .quick-chip {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+      padding: 8px 12px;
+      border-radius: 10px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+    .quick-chip:hover {
+      border-color: var(--primary);
+      background: var(--primary-container);
+      color: var(--primary-light);
+    }
+
+    /* 7-Day Velocity Chart */
+    .chart-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 16px;
+    }
+    .chart-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+    .chart-title h4 {
+      font-size: 14px;
+      font-weight: 700;
+    }
+    .chart-selected-text {
+      font-size: 11px;
+      color: var(--primary-light);
+      font-weight: 600;
+      margin-top: 2px;
+    }
+    .chart-bars-wrap {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      height: 120px;
+      padding-top: 20px;
+      gap: 6px;
+    }
+    .bar-column {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      height: 100%;
+      justify-content: flex-end;
+      cursor: pointer;
+    }
+    .bar-tag {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--primary-light);
+      margin-bottom: 4px;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .bar-column.active .bar-tag,
+    .bar-column:hover .bar-tag {
+      opacity: 1;
+    }
+    .bar-fill {
+      width: 70%;
+      background: var(--primary);
+      border-radius: 4px 4px 0 0;
+      transition: all 0.3s;
+    }
+    .bar-column.active .bar-fill {
+      background: var(--primary-light);
+      box-shadow: 0 0 10px rgba(52, 211, 153, 0.4);
+    }
+    .bar-label {
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-top: 6px;
+    }
+
+    /* Burn Rate & Runway */
+    .burn-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .burn-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .burn-item h5 {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+    .burn-item p {
+      font-size: 16px;
+      font-weight: 700;
+      font-family: var(--font-mono);
+      margin-top: 2px;
+    }
+    .progress-bar-wrap {
+      width: 100%;
+      height: 6px;
+      background: var(--bg-elevated);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: var(--primary);
+      border-radius: 3px;
+      transition: width 0.4s;
+    }
+
+    /* Goals & Savings Opportunities */
+    .goals-card {
+      background: var(--bg-card);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      border-radius: 16px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .goals-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .btn-deposit {
+      background: transparent;
+      border: 1px solid var(--primary);
+      color: var(--primary-light);
+      font-size: 12px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-deposit:hover {
+      background: var(--primary-container);
+    }
+
+    /* Ledger Table */
+    .ledger-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 16px;
+    }
+    .ledger-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .ledger-header h4 {
+      font-size: 14px;
+      font-weight: 700;
+    }
+    .ledger-tools {
+      display: flex;
+      gap: 6px;
+    }
+    .filter-tabs {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 12px;
+      overflow-x: auto;
+      padding-bottom: 2px;
+    }
+    .filter-tab {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-color);
+      color: var(--text-secondary);
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .filter-tab.active {
+      border-color: var(--primary);
+      color: var(--primary-light);
+      background: var(--primary-container);
+    }
+    .tx-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border-light);
+    }
+    .tx-item:last-child {
+      border-bottom: none;
+    }
+    .tx-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .tx-icon {
+      width: 36px;
+      height: 36px;
+      background: var(--bg-elevated);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+    }
+    .tx-name {
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .tx-meta {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+    .tx-amount {
+      font-size: 14px;
+      font-weight: 700;
+      font-family: var(--font-mono);
+      text-align: right;
+    }
+    .tx-amount.expense {
+      color: var(--text-primary);
+    }
+    .tx-amount.income {
+      color: var(--primary-light);
+    }
+
+    /* Floating Action Bar / Mobile Nav */
+    .fab-bar {
+      position: fixed;
+      bottom: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: calc(100% - 32px);
+      max-width: 520px;
+      background: rgba(17, 24, 39, 0.95);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border-color);
+      border-radius: 30px;
+      padding: 8px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+      z-index: 100;
+    }
+    .fab-btn-primary {
+      background: var(--primary);
+      color: #0B0F19;
+      border: none;
+      font-size: 13px;
+      font-weight: 700;
+      padding: 8px 18px;
+      border-radius: 20px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+    .fab-btn-primary:hover {
+      background: var(--primary-light);
+    }
+    .fab-link {
+      color: var(--text-secondary);
+      font-size: 12px;
+      text-decoration: none;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      cursor: pointer;
+      transition: color 0.2s;
+    }
+    .fab-link:hover {
+      color: var(--primary-light);
+    }
+
+    /* Modal Overlays */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(5px);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    .modal-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 20px;
+      width: 100%;
+      max-width: 460px;
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .modal-close {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 22px;
+      cursor: pointer;
+    }
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .form-group label {
+      font-size: 12px;
+      color: var(--text-secondary);
+      font-weight: 600;
+    }
+    .form-control {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+      padding: 10px 12px;
+      border-radius: 10px;
+      font-size: 14px;
+      outline: none;
+    }
+    .form-control:focus {
+      border-color: var(--primary);
+    }
+    .btn-submit {
+      background: var(--primary);
+      border: none;
+      color: #0B0F19;
+      padding: 12px;
+      border-radius: 10px;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 14px;
+      margin-top: 6px;
+    }
+
+    /* Copilot Chat Styling */
+    .chat-history {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-height: 280px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+    .chat-bubble {
+      padding: 10px 14px;
+      border-radius: 12px;
+      font-size: 13px;
+      line-height: 1.4;
+      max-width: 88%;
+    }
+    .chat-bubble.assistant {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+      align-self: flex-start;
+    }
+    .chat-bubble.user {
+      background: var(--primary-container);
+      border: 1px solid var(--primary);
+      color: var(--primary-light);
+      align-self: flex-end;
+    }
+    .copilot-prompt-chips {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-top: 6px;
+    }
+    .prompt-chip {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-color);
+      color: var(--text-secondary);
+      font-size: 11px;
+      padding: 5px 10px;
+      border-radius: 14px;
+      cursor: pointer;
+    }
+    .prompt-chip:hover {
+      border-color: var(--primary);
+      color: var(--primary-light);
+    }
+  </style>
+
+  <!-- Vercel Analytics SDK -->
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body>
+
+  <div class="app-container">
+
+    <!-- Platform & Vercel Deployment Bar -->
+    <div class="platform-banner">
+      <div class="platform-badge">
+        <svg class="vercel-icon" viewBox="0 0 1155 1000">
+          <path d="M577.346 0L1154.69 1000H0L577.346 0Z"/>
+        </svg>
+        <div>
+          <span><strong>SpendWise</strong> • Vercel Web & Android Suite</span>
+          <p style="color: var(--text-muted); font-size: 10px; margin-top: 1px;">Deployable at *.vercel.app & Android Emulator</p>
+        </div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <span class="status-dot"></span>
+        <span style="color: var(--primary-light); font-weight: 700;">Live & Synced</span>
+      </div>
+    </div>
+
+    <!-- User Clerk Identity Card -->
+    <div class="user-card">
+      <div class="user-left">
+        <div class="user-avatar" id="userAvatar">AR</div>
+        <div class="user-details">
+          <h3 id="userName">Alex Rivera <span class="verified-pill">Clerk Active</span></h3>
+          <p id="userEmail">alex.rivera@spendwise.app • tolerant-anemone-6963</p>
+        </div>
+      </div>
+      <button class="auth-action-btn" onclick="openAuthModal()">Account</button>
+    </div>
+
+    <!-- Time Horizon Tabs -->
+    <div class="horizon-selector">
+      <div class="horizon-pill active" onclick="setHorizon(this, 'THIS_MONTH')">This Month</div>
+      <div class="horizon-pill" onclick="setHorizon(this, 'LAST_30_DAYS')">Last 30 Days</div>
+      <div class="horizon-pill" onclick="setHorizon(this, 'THIS_WEEK')">This Week</div>
+    </div>
+
+    <!-- Feedback Toast -->
+    <div class="toast-banner" id="toastBanner">
+      <span id="toastText">Action applied successfully!</span>
+      <span style="cursor: pointer;" onclick="hideToast()">✕</span>
+    </div>
+
+    <!-- Spending Health Card -->
+    <div class="health-card" onclick="showHealthInfo()">
+      <div class="health-left">
+        <h4>Spending Health Index</h4>
+        <div class="health-score-val" id="healthScore">84</div>
+        <span class="health-pill" id="healthStatus">EXCELLENT</span>
+      </div>
+      <div class="health-right">
+        <p>Budget Utilization</p>
+        <h5 id="utilizationPct">58% Utilized</h5>
+        <p style="margin-top: 4px;">Remaining: <strong style="color: var(--primary-light);" id="remainingBudget">$1,450.00</strong></p>
+      </div>
+    </div>
+
+    <!-- Risk Alert Banner -->
+    <div class="risk-alert-card" id="riskCard">
+      <div class="risk-header">
+        <div class="risk-icon">⚠️</div>
+        <div class="risk-body">
+          <h4 id="riskTitle">Risk Signal: Artisan Coffee Duplicate</h4>
+          <p id="riskDesc">Identified 2 identical charges of $15.50 within 4 minutes on Sep 15. Potential card swipe glitch.</p>
+        </div>
+      </div>
+      <div class="risk-actions">
+        <button class="btn-resolve" onclick="resolveRiskAlert()">
+          ✓ Mark Safe & Resolve
+        </button>
+      </div>
+    </div>
+
+    <!-- 2x2 Metric Cards Grid -->
+    <div class="metrics-grid">
+      <div class="metric-card">
+        <div class="metric-title">Net Balance</div>
+        <div class="metric-amount" id="netBalance">$3,850.00</div>
+        <div class="metric-sub">Available Liquidity</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-title">Monthly Income</div>
+        <div class="metric-amount" id="totalIncome">$5,800.00</div>
+        <div class="metric-sub">+4.2% MoM Growth</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-title">Monthly Spending</div>
+        <div class="metric-amount" id="totalExpense">$2,350.00</div>
+        <div class="metric-sub negative">-12.5% vs Prev Month</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-title">Remaining Budget</div>
+        <div class="metric-amount" id="budgetRemaining">$1,450.00</div>
+        <div class="metric-sub">Cap: $3,800.00</div>
+      </div>
+    </div>
+
+    <!-- 1-Tap Quick-Log Expense Bar -->
+    <div class="quick-log-card">
+      <div class="quick-log-header">
+        <h4>1-Tap Quick Log</h4>
+        <span>Instant Outflow Entry</span>
+      </div>
+      <div class="quick-log-buttons">
+        <div class="quick-chip" onclick="quickLog('Artisan Lunch', 15.00, 'Food')">☕ +$15 Lunch</div>
+        <div class="quick-chip" onclick="quickLog('Trader Joe Market', 45.00, 'Food')">🛒 +$45 Groceries</div>
+        <div class="quick-chip" onclick="quickLog('Uber Ride', 25.00, 'Transport')">🚗 +$25 Uber</div>
+        <div class="quick-chip" onclick="quickLog('Digital Stream Pro', 12.00, 'Subscriptions')">📺 +$12 Sub</div>
+        <div class="quick-chip" onclick="openAddModal()">✏️ + Custom</div>
+      </div>
+    </div>
+
+    <!-- 7-Day Velocity Interactive Bar Chart -->
+    <div class="chart-card">
+      <div class="chart-header">
+        <div class="chart-title">
+          <h4>7-Day Spending Velocity</h4>
+          <div class="chart-selected-text" id="chartSelection">Click any day bar to inspect</div>
+        </div>
+        <span style="font-size: 11px; color: var(--text-muted);">Peak: <strong style="color: var(--text-primary);">$120</strong></span>
+      </div>
+      <div class="chart-bars-wrap" id="chartBars">
+        <!-- Generated by JS -->
+      </div>
+    </div>
+
+    <!-- Burn Rate & Runway -->
+    <div class="burn-card">
+      <div class="burn-row">
+        <div class="burn-item">
+          <h5>Daily Burn Rate</h5>
+          <p id="burnRate">$78.30 / day</p>
+        </div>
+        <div class="burn-item" style="text-align: right;">
+          <h5>Projected Month-End</h5>
+          <p style="color: var(--primary-light);" id="projectedSpend">$3,420.00</p>
+        </div>
+      </div>
+      <div class="progress-bar-wrap">
+        <div class="progress-fill" id="burnProgress" style="width: 61%;"></div>
+      </div>
+    </div>
+
+    <!-- Goals Card with 1-Tap Deposit -->
+    <div class="goals-card">
+      <div class="goals-header">
+        <div>
+          <h4 style="font-size: 14px;">🎯 Emergency Buffer Goal</h4>
+          <p style="font-size: 11px; color: var(--text-muted); margin-top: 2px;" id="goalProgressText">72% of $5,000.00 saved</p>
+        </div>
+        <div style="display: flex; gap: 6px;">
+          <button class="btn-deposit" onclick="depositGoal(25)">+$25</button>
+          <button class="btn-deposit" onclick="depositGoal(50)">+$50</button>
+        </div>
+      </div>
+      <div class="progress-bar-wrap">
+        <div class="progress-fill" id="goalProgress" style="width: 72%;"></div>
+      </div>
+    </div>
+
+    <!-- Ledger Activity -->
+    <div class="ledger-card">
+      <div class="ledger-header">
+        <h4>Recent Transactions</h4>
+        <div class="ledger-tools">
+          <button class="auth-action-btn" onclick="openCsvModal()">Import CSV</button>
+          <button class="auth-action-btn" onclick="exportCsv()">Export CSV</button>
+        </div>
+      </div>
+      <div class="filter-tabs">
+        <div class="filter-tab active" onclick="filterCategory(this, 'ALL')">All</div>
+        <div class="filter-tab" onclick="filterCategory(this, 'Food')">Food</div>
+        <div class="filter-tab" onclick="filterCategory(this, 'Transport')">Transport</div>
+        <div class="filter-tab" onclick="filterCategory(this, 'Subscriptions')">Subscriptions</div>
+        <div class="filter-tab" onclick="filterCategory(this, 'Salary')">Income</div>
+      </div>
+      <div id="txList">
+        <!-- Rendered by JS -->
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Bottom Action Bar -->
+  <div class="fab-bar">
+    <div class="fab-link" onclick="openCopilotModal()">
+      <span>✨</span> Copilot AI
+    </div>
+    <button class="fab-btn-primary" onclick="openAddModal()">
+      + New Transaction
+    </button>
+    <div class="fab-link" onclick="openCsvModal()">
+      <span>📂</span> CSV Import
+    </div>
+  </div>
+
+  <!-- Add Transaction Modal -->
+  <div class="modal-overlay" id="modalOverlay" onclick="closeModalOutside(event, 'modalOverlay')">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 style="font-size: 16px;">Log New Transaction</h3>
+        <button class="modal-close" onclick="closeModal('modalOverlay')">✕</button>
+      </div>
+      <div class="form-group">
+        <label>Merchant / Payee</label>
+        <input type="text" id="txMerchant" class="form-control" placeholder="e.g. Whole Foods, Netflix, Uber" />
+      </div>
+      <div class="form-group">
+        <label>Amount ($)</label>
+        <input type="number" id="txAmount" class="form-control" placeholder="0.00" step="0.01" />
+      </div>
+      <div class="form-group">
+        <label>Category</label>
+        <select id="txCategory" class="form-control">
+          <option value="Food">☕ Food & Dining</option>
+          <option value="Transport">🚗 Transport & Mobility</option>
+          <option value="Housing">🏠 Housing & Utilities</option>
+          <option value="Subscriptions">📺 Recurring Subscriptions</option>
+          <option value="Shopping">🛍️ Shopping & Tech</option>
+          <option value="Salary">💰 Income / Salary</option>
+        </select>
+      </div>
+      <button class="btn-submit" onclick="submitTransaction()">Save to Ledger</button>
+    </div>
+  </div>
+
+  <!-- Copilot AI Modal -->
+  <div class="modal-overlay" id="copilotModal" onclick="closeModalOutside(event, 'copilotModal')">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 20px;">✨</span>
+          <h3 style="font-size: 16px;">SpendWise AI Copilot</h3>
+        </div>
+        <button class="modal-close" onclick="closeModal('copilotModal')">✕</button>
+      </div>
+      <div class="chat-history" id="chatHistory">
+        <div class="chat-bubble assistant">
+          Hello! I'm your SpendWise financial copilot. Ask me anything about your cashflow, duplicate charges, or how to reach your $5,000 emergency fund.
+        </div>
+      </div>
+      <div class="copilot-prompt-chips">
+        <span class="prompt-chip" onclick="askCopilot('Why did my expenses increase?')">Why did my expenses increase?</span>
+        <span class="prompt-chip" onclick="askCopilot('How can I cut food spending?')">How can I cut food spending?</span>
+        <span class="prompt-chip" onclick="askCopilot('Show duplicate risk alerts.')">Show duplicate risk alerts.</span>
+      </div>
+      <div style="display: flex; gap: 8px; margin-top: 6px;">
+        <input type="text" id="copilotInput" class="form-control" placeholder="Ask financial assistant..." onkeydown="if(event.key==='Enter') sendCopilotMsg()" />
+        <button class="btn-submit" style="margin-top: 0; padding: 0 16px;" onclick="sendCopilotMsg()">Send</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CSV Import Modal -->
+  <div class="modal-overlay" id="csvModal" onclick="closeModalOutside(event, 'csvModal')">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 style="font-size: 16px;">Import Bank CSV Statement</h3>
+        <button class="modal-close" onclick="closeModal('csvModal')">✕</button>
+      </div>
+      <p style="font-size: 12px; color: var(--text-secondary);">
+        Paste comma-separated rows or select a CSV file. Format: <code>Date, Merchant, Category, Amount</code>
+      </p>
+      <div class="form-group">
+        <label>CSV Text Data</label>
+        <textarea id="csvText" class="form-control" rows="5" placeholder="2026-09-16, Chipotle, Food, 14.50&#10;2026-09-15, Chevron Gas, Transport, 45.00"></textarea>
+      </div>
+      <button class="btn-submit" onclick="processCsvInput()">Process & Import Rows</button>
+    </div>
+  </div>
+
+  <!-- Auth / Clerk Modal -->
+  <div class="modal-overlay" id="authModal" onclick="closeModalOutside(event, 'authModal')">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 style="font-size: 16px;">Clerk Session & Identity</h3>
+        <button class="modal-close" onclick="closeModal('authModal')">✕</button>
+      </div>
+      <div style="background: var(--bg-elevated); padding: 12px; border-radius: 10px; font-size: 12px; display: flex; flex-direction: column; gap: 4px;">
+        <div style="display: flex; justify-content: space-between;">
+          <span style="color: var(--text-muted);">Instance:</span>
+          <span style="color: var(--primary-light);">tolerant-anemone-6963</span>
+        </div>
+        <div style="display: flex; justify-content: space-between;">
+          <span style="color: var(--text-muted);">Session Status:</span>
+          <span style="color: var(--primary);">Active (Clerk Verified)</span>
+        </div>
+        <div style="display: flex; justify-content: space-between;">
+          <span style="color: var(--text-muted);">User ID:</span>
+          <span style="color: var(--text-secondary);">user_2tKl88x019m</span>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Display Name</label>
+        <input type="text" id="profileName" class="form-control" value="Alex Rivera" />
+      </div>
+      <div class="form-group">
+        <label>Email Address</label>
+        <input type="email" id="profileEmail" class="form-control" value="alex.rivera@spendwise.app" />
+      </div>
+      <button class="btn-submit" onclick="saveProfile()">Update Profile</button>
+      <button class="auth-action-btn" style="width: 100%; border-color: var(--red-risk); color: var(--red-risk); padding: 10px;" onclick="signOut()">Sign Out of Session</button>
+    </div>
+  </div>
+
+  <script>
+    // State management with LocalStorage sync
+    const defaultTransactions = [
+      { id: '1', merchant: 'Whole Foods Market', amount: 84.50, category: 'Food', date: 'Today, 2:30 PM', type: 'EXPENSE', icon: '🛒' },
+      { id: '2', merchant: 'Artisan Coffee', amount: 15.50, category: 'Food', date: 'Sep 15, 9:15 AM', type: 'EXPENSE', icon: '☕' },
+      { id: '3', merchant: 'Tech Solutions Payroll', amount: 2900.00, category: 'Salary', date: 'Sep 15, 8:00 AM', type: 'INCOME', icon: '💼' },
+      { id: '4', merchant: 'Uber Trip', amount: 24.80, category: 'Transport', date: 'Sep 14, 6:40 PM', type: 'EXPENSE', icon: '🚗' },
+      { id: '5', merchant: 'SaaS Cloud Pro', amount: 29.99, category: 'Subscriptions', date: 'Sep 12, 10:00 AM', type: 'EXPENSE', icon: '☁️' }
+    ];
+
+    let transactions = JSON.parse(localStorage.getItem('spendwise_txs')) || defaultTransactions;
+    let goalAmount = parseFloat(localStorage.getItem('spendwise_goal')) || 3600;
+    let activeCategory = 'ALL';
+
+    const dailyData = [
+      { day: 'Mon', amount: 45 },
+      { day: 'Tue', amount: 110 },
+      { day: 'Wed', amount: 35 },
+      { day: 'Thu', amount: 80 },
+      { day: 'Fri', amount: 95 },
+      { day: 'Sat', amount: 120 },
+      { day: 'Sun', amount: 65 }
+    ];
+
+    function saveState() {
+      localStorage.setItem('spendwise_txs', JSON.stringify(transactions));
+      localStorage.setItem('spendwise_goal', goalAmount.toString());
+      render();
+    }
+
+    function render() {
+      // Calculate totals
+      let totalExpense = transactions.filter(t => t.type === 'EXPENSE').reduce((sum, t) => sum + t.amount, 0);
+      let totalIncome = transactions.filter(t => t.type === 'INCOME').reduce((sum, t) => sum + t.amount, 0);
+      let balance = totalIncome - totalExpense;
+      let targetBudget = 3800.00;
+      let remaining = Math.max(0, targetBudget - totalExpense);
+      let utilization = Math.min(100, Math.round((totalExpense / targetBudget) * 100));
+
+      document.getElementById('totalExpense').innerText = '$' + totalExpense.toLocaleString('en-US', { minimumFractionDigits: 2 });
+      document.getElementById('totalIncome').innerText = '$' + totalIncome.toLocaleString('en-US', { minimumFractionDigits: 2 });
+      document.getElementById('netBalance').innerText = '$' + balance.toLocaleString('en-US', { minimumFractionDigits: 2 });
+      document.getElementById('budgetRemaining').innerText = '$' + remaining.toLocaleString('en-US', { minimumFractionDigits: 2 });
+      document.getElementById('remainingBudget').innerText = '$' + remaining.toLocaleString('en-US', { minimumFractionDigits: 2 });
+      document.getElementById('utilizationPct').innerText = utilization + '% Utilized';
+
+      // Goal update
+      let goalTarget = 5000;
+      let goalPct = Math.min(100, Math.round((goalAmount / goalTarget) * 100));
+      document.getElementById('goalProgressText').innerText = `${goalPct}% of $${goalTarget.toLocaleString()} saved ($${goalAmount.toLocaleString()})`;
+      document.getElementById('goalProgress').style.width = goalPct + '%';
+
+      // Burn rate
+      let dailyBurn = (totalExpense / 17).toFixed(1);
+      document.getElementById('burnRate').innerText = `$${dailyBurn} / day`;
+      document.getElementById('burnProgress').style.width = utilization + '%';
+
+      // Render chart
+      const chartWrap = document.getElementById('chartBars');
+      chartWrap.innerHTML = '';
+      const maxVal = Math.max(...dailyData.map(d => d.amount));
+      dailyData.forEach((d, idx) => {
+        const heightPct = Math.max(10, Math.round((d.amount / maxVal) * 100));
+        const col = document.createElement('div');
+        col.className = 'bar-column';
+        col.onclick = () => selectDay(idx, d.day, d.amount);
+        col.innerHTML = `
+          <div class="bar-tag">$${d.amount}</div>
+          <div class="bar-fill" style="height: ${heightPct}%;"></div>
+          <div class="bar-label">${d.day}</div>
+        `;
+        chartWrap.appendChild(col);
+      });
+
+      // Render transactions
+      const txWrap = document.getElementById('txList');
+      txWrap.innerHTML = '';
+      const filtered = activeCategory === 'ALL' ? transactions : transactions.filter(t => t.category === activeCategory);
+      filtered.forEach(tx => {
+        const item = document.createElement('div');
+        item.className = 'tx-item';
+        const isExp = tx.type === 'EXPENSE';
+        item.innerHTML = `
+          <div class="tx-left">
+            <div class="tx-icon">${tx.icon || '💳'}</div>
+            <div>
+              <div class="tx-name">${tx.merchant}</div>
+              <div class="tx-meta">${tx.category} • ${tx.date}</div>
+            </div>
+          </div>
+          <div class="tx-amount ${isExp ? 'expense' : 'income'}">
+            ${isExp ? '-' : '+'}$${tx.amount.toFixed(2)}
+          </div>
+        `;
+        txWrap.appendChild(item);
+      });
+    }
+
+    function selectDay(idx, day, amt) {
+      document.querySelectorAll('.bar-column').forEach((col, i) => {
+        col.classList.toggle('active', i === idx);
+      });
+      document.getElementById('chartSelection').innerText = `Selected: ${day} • $${amt}.00 spent`;
+    }
+
+    function quickLog(merchant, amount, category) {
+      const icons = { Food: '☕', Transport: '🚗', Subscriptions: '📺', Housing: '🏠', Shopping: '🛍️' };
+      transactions.unshift({
+        id: Date.now().toString(),
+        merchant: merchant,
+        amount: amount,
+        category: category,
+        date: 'Just now',
+        type: 'EXPENSE',
+        icon: icons[category] || '💳'
+      });
+      saveState();
+      showToast(`Logged +$${amount.toFixed(2)} for ${merchant}`);
+    }
+
+    function depositGoal(amount) {
+      goalAmount += amount;
+      saveState();
+      showToast(`Deposited +$${amount} to Emergency Buffer Goal!`);
+    }
+
+    function resolveRiskAlert() {
+      document.getElementById('riskCard').style.display = 'none';
+      showToast("Risk signal resolved and marked safe.");
+    }
+
+    function setHorizon(el, horizon) {
+      document.querySelectorAll('.horizon-pill').forEach(p => p.classList.remove('active'));
+      el.classList.add('active');
+      showToast(`Time horizon set to: ${el.innerText}`);
+    }
+
+    function filterCategory(el, cat) {
+      activeCategory = cat;
+      document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+      el.classList.add('active');
+      render();
+    }
+
+    function showToast(msg) {
+      const banner = document.getElementById('toastBanner');
+      document.getElementById('toastText').innerText = msg;
+      banner.style.display = 'flex';
+      setTimeout(() => banner.style.display = 'none', 3500);
+    }
+
+    function hideToast() {
+      document.getElementById('toastBanner').style.display = 'none';
+    }
+
+    function openAddModal() {
+      document.getElementById('modalOverlay').style.display = 'flex';
+    }
+
+    function openCopilotModal() {
+      document.getElementById('copilotModal').style.display = 'flex';
+    }
+
+    function openCsvModal() {
+      document.getElementById('csvModal').style.display = 'flex';
+    }
+
+    function openAuthModal() {
+      document.getElementById('authModal').style.display = 'flex';
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).style.display = 'none';
+    }
+
+    function closeModalOutside(e, id) {
+      if (e.target.id === id) closeModal(id);
+    }
+
+    function submitTransaction() {
+      const merchant = document.getElementById('txMerchant').value.trim();
+      const amount = parseFloat(document.getElementById('txAmount').value);
+      const category = document.getElementById('txCategory').value;
+
+      if (!merchant || isNaN(amount) || amount <= 0) {
+        alert("Please enter a valid merchant and amount.");
+        return;
+      }
+
+      const icons = { Food: '☕', Transport: '🚗', Subscriptions: '📺', Housing: '🏠', Shopping: '🛍️', Salary: '💼' };
+      transactions.unshift({
+        id: Date.now().toString(),
+        merchant: merchant,
+        amount: amount,
+        category: category,
+        date: 'Today',
+        type: category === 'Salary' ? 'INCOME' : 'EXPENSE',
+        icon: icons[category] || '💳'
+      });
+
+      document.getElementById('txMerchant').value = '';
+      document.getElementById('txAmount').value = '';
+      closeModal('modalOverlay');
+      saveState();
+      showToast(`Added ${merchant} ($${amount.toFixed(2)}) to ledger!`);
+    }
+
+    function exportCsv() {
+      let csv = "ID,Merchant,Category,Amount,Type,Date\n";
+      transactions.forEach(t => {
+        csv += `"${t.id}","${t.merchant}","${t.category}",${t.amount},"${t.type}","${t.date}"\n`;
+      });
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.setAttribute('href', url);
+      a.setAttribute('download', 'spendwise_export.csv');
+      a.click();
+      showToast("CSV export generated and downloaded.");
+    }
+
+    function processCsvInput() {
+      const text = document.getElementById('csvText').value.trim();
+      if (!text) {
+        alert("Please paste CSV data rows.");
+        return;
+      }
+      const lines = text.split('\n');
+      let count = 0;
+      lines.forEach(line => {
+        const parts = line.split(',').map(p => p.trim().replace(/^["']|["']$/g, ''));
+        if (parts.length >= 3) {
+          const amt = parseFloat(parts[parts.length - 1]);
+          const merch = parts[1] || parts[0];
+          const cat = parts[2] || 'Shopping';
+          if (!isNaN(amt)) {
+            transactions.unshift({
+              id: Date.now().toString() + Math.random(),
+              merchant: merch,
+              amount: Math.abs(amt),
+              category: cat,
+              date: 'Imported',
+              type: amt > 0 ? 'EXPENSE' : 'INCOME',
+              icon: '📄'
+            });
+            count++;
+          }
+        }
+      });
+      closeModal('csvModal');
+      saveState();
+      showToast(`Successfully imported ${count} records from CSV.`);
+    }
+
+    function askCopilot(query) {
+      document.getElementById('copilotInput').value = query;
+      sendCopilotMsg();
+    }
+
+    function sendCopilotMsg() {
+      const input = document.getElementById('copilotInput');
+      const text = input.value.trim();
+      if (!text) return;
+
+      const chat = document.getElementById('chatHistory');
+      
+      // Append user
+      const userEl = document.createElement('div');
+      userEl.className = 'chat-bubble user';
+      userEl.innerText = text;
+      chat.appendChild(userEl);
+
+      input.value = '';
+
+      // Generate response
+      setTimeout(() => {
+        const botEl = document.createElement('div');
+        botEl.className = 'chat-bubble assistant';
+        let reply = "Based on your spending profile: Your top outflow this month is Dining ($420) followed by Transport ($185). You have $1,450 remaining before reaching your $3,800 limit, keeping you well within the safe 60% utilization corridor.";
+        if (text.toLowerCase().includes("increase") || text.toLowerCase().includes("spike")) {
+          reply = "Your spending increased primarily due to 2 high-frequency dining transactions on Sep 15 and your SaaS Cloud renewal. Cutting weekend food orders by $35 can save you ~$140/month.";
+        } else if (text.toLowerCase().includes("food")) {
+          reply = "You've spent $420 of your $650 Food budget (64%). At current velocity of $28/day, you will hit the cap in 8 days. Consider meal prepping on weekdays to save $120.";
+        } else if (text.toLowerCase().includes("duplicate") || text.toLowerCase().includes("risk")) {
+          reply = "We flagged 1 potential risk: Artisan Coffee for $15.50 charged twice within 4 minutes. Tap 'Mark Safe & Resolve' if this was two separate orders.";
+        }
+        botEl.innerText = reply;
+        chat.appendChild(botEl);
+        chat.scrollTop = chat.scrollHeight;
+      }, 500);
+    }
+
+    function saveProfile() {
+      const name = document.getElementById('profileName').value.trim();
+      const email = document.getElementById('profileEmail').value.trim();
+      if (name) {
+        document.getElementById('userName').innerHTML = `${name} <span class="verified-pill">Clerk Active</span>`;
+        document.getElementById('userAvatar').innerText = name.split(' ').map(n=>n[0]).join('').substring(0, 2).toUpperCase();
+      }
+      if (email) {
+        document.getElementById('userEmail').innerText = `${email} • tolerant-anemone-6963`;
+      }
+      closeModal('authModal');
+      showToast("Profile credentials updated successfully.");
+    }
+
+    function signOut() {
+      closeModal('authModal');
+      showToast("Signed out of Clerk session. Demo mode active.");
+    }
+
+    function showHealthInfo() {
+      showToast("Health Score 84/100: Excellent reserve liquidity and minimal recurring debt.");
+    }
+
+    // Initial render
+    render();
+  </script>
+</body>
+</html>

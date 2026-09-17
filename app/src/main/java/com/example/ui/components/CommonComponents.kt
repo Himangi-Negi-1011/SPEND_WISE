@@ -288,7 +288,8 @@ fun SpendingHealthCard(
 fun RiskAlertCard(
     alert: RiskAlert,
     currencySymbol: String,
-    onInvestigate: () -> Unit = {}
+    onInvestigate: () -> Unit = {},
+    onResolve: (() -> Unit)? = null
 ) {
     val (badgeColor, containerColor) = when (alert.severity) {
         RiskSeverity.HIGH -> Pair(RedRisk, RedContainer)
@@ -365,6 +366,24 @@ fun RiskAlertCard(
                     fontWeight = FontWeight.Bold,
                     color = badgeColor
                 )
+            }
+
+            if (onResolve != null) {
+                HorizontalDivider(color = DarkBorder, modifier = Modifier.padding(top = 4.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    TextButton(
+                        onClick = onResolve,
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                    ) {
+                        Icon(Icons.Default.Check, contentDescription = null, tint = EmeraldLight, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Mark Safe & Resolve", color = EmeraldLight, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    }
+                }
             }
         }
     }
@@ -497,6 +516,8 @@ fun AiInsightCard(
 fun SimpleSpendingBarChart(
     dailyExpenses: List<Pair<String, Double>>,
     currencySymbol: String,
+    selectedDayIndex: Int? = null,
+    onSelectDay: ((Int) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val maxVal = (dailyExpenses.maxOfOrNull { it.second } ?: 100.0).coerceAtLeast(10.0)
@@ -515,14 +536,25 @@ fun SimpleSpendingBarChart(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
+            Column {
+                Text(
+                    text = "7-Day Velocity & Outflows",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary
+                )
+                if (selectedDayIndex != null && selectedDayIndex in dailyExpenses.indices) {
+                    val sel = dailyExpenses[selectedDayIndex]
+                    Text(
+                        text = "Selected: ${sel.first} • $currencySymbol${String.format(Locale.US, "%.2f", sel.second)}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = EmeraldLight,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
             Text(
-                text = "Recent Daily Spending",
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold,
-                color = TextPrimary
-            )
-            Text(
-                text = "Max: $currencySymbol${String.format(Locale.US, "%.0f", maxVal)}",
+                text = "Peak: $currencySymbol${String.format(Locale.US, "%.0f", maxVal)}",
                 style = MaterialTheme.typography.labelSmall,
                 color = TextSecondary
             )
@@ -535,25 +567,47 @@ fun SimpleSpendingBarChart(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.Bottom
         ) {
-            dailyExpenses.takeLast(7).forEach { (day, amount) ->
-                val ratio = (amount / maxVal).toFloat().coerceIn(0.05f, 1f)
+            val displayDays = dailyExpenses.takeLast(7)
+            displayDays.forEachIndexed { index, (day, amount) ->
+                val ratio = (amount / maxVal).toFloat().coerceIn(0.06f, 1f)
+                val isSelected = selectedDayIndex == index
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Bottom,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable { onSelectDay?.invoke(index) }
+                        .padding(horizontal = 2.dp)
                 ) {
+                    if (isSelected) {
+                        Text(
+                            text = "$currencySymbol${amount.toInt()}",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontSize = 9.sp,
+                            color = EmeraldLight,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                    }
                     Box(
                         modifier = Modifier
-                            .fillMaxWidth(0.6f)
+                            .fillMaxWidth(0.65f)
                             .fillMaxHeight(ratio)
                             .clip(RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp))
-                            .background(if (amount > maxVal * 0.75) AmberWarning else EmeraldPrimary)
+                            .background(
+                                when {
+                                    isSelected -> EmeraldLight
+                                    amount > maxVal * 0.75 -> AmberWarning
+                                    else -> EmeraldPrimary
+                                }
+                            )
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
                         text = day,
                         style = MaterialTheme.typography.labelSmall,
-                        color = TextMuted,
+                        color = if (isSelected) EmeraldLight else TextMuted,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                         fontSize = 10.sp
                     )
                 }

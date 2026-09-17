@@ -31,7 +31,8 @@ import com.example.ui.theme.*
 @Composable
 fun RiskDetectionScreen(
     riskAlerts: List<RiskAlert>,
-    currencySymbol: String
+    currencySymbol: String,
+    onResolveAlert: (String) -> Unit = {}
 ) {
     var selectedSeverity by remember { mutableStateOf<RiskSeverity?>(null) }
 
@@ -145,7 +146,8 @@ fun RiskDetectionScreen(
             items(filteredAlerts, key = { it.id }) { alert ->
                 RiskAlertCard(
                     alert = alert,
-                    currencySymbol = currencySymbol
+                    currencySymbol = currencySymbol,
+                    onResolve = { onResolveAlert(alert.id) }
                 )
             }
         }

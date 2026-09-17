@@ -106,7 +106,7 @@ data class CopilotMessage(
 
 data class UserProfile(
     val name: String = "Alex Rivera",
-    val email: String = "alex.rivera@example.com",
+    val email: String = "alex.rivera@spendwise.app",
     val monthlyIncome: Double = 4200.0,
     val targetBudget: Double = 2740.0,
     val currencySymbol: String = "$",
@@ -115,7 +115,9 @@ data class UserProfile(
     val isOnboarded: Boolean = true,
     val isAuthenticated: Boolean = true,
     val isDemoMode: Boolean = true,
-    val clerkUserId: String = "user_clerk_2x89mPq1",
+    val clerkUserId: String = "user_3JRjNj5U6cWAoxhfQ3VOeocOG1b",
+    val authProvider: String = "Clerk SSO",
+    val clerkSessionStatus: String = "Active (Dev)",
     val avatarInitials: String = "AR",
     val tier: String = "SpendWise Pro",
     val biometricsEnabled: Boolean = true,

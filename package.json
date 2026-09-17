@@ -1,0 +1,25 @@
+{
+  "name": "spendwise-web-android",
+  "version": "1.0.0",
+  "description": "SpendWise - AI Expense Tracker & Financial Risk Detector for Web and Android",
+  "private": true,
+  "scripts": {
+    "build": "node build.js",
+    "vercel-build": "node build.js",
+    "start": "npx serve public"
+  },
+  "dependencies": {
+    "@vercel/analytics": "^1.4.1",
+    "@vercel/speed-insights": "^1.2.0"
+  },
+  "keywords": [
+    "expense-tracker",
+    "clerk-auth",
+    "financial-risk",
+    "android",
+    "vercel",
+    "jetpack-compose"
+  ],
+  "author": "SpendWise Team",
+  "license": "MIT"
+}

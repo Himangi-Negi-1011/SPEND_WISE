@@ -158,7 +158,8 @@ fun SettingsScreen(
     profile: UserProfile,
     onUpdateProfile: (UserProfile) -> Unit,
     onSeedDemoData: () -> Unit,
-    onClearAllData: () -> Unit
+    onClearAllData: () -> Unit,
+    onSignOut: () -> Unit = {}
 ) {
     val context = LocalContext.current
     var name by remember { mutableStateOf(profile.name) }
@@ -200,16 +201,86 @@ fun SettingsScreen(
                             .border(1.dp, EmeraldLight, CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text("AR", fontWeight = FontWeight.ExtraBold, color = EmeraldLight, fontSize = 20.sp)
+                        Text(profile.avatarInitials, fontWeight = FontWeight.ExtraBold, color = EmeraldLight, fontSize = 20.sp)
                     }
                     Column(modifier = Modifier.weight(1f)) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             Text(name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = TextPrimary)
                             Surface(shape = RoundedCornerShape(4.dp), color = EmeraldContainer.copy(alpha = 0.5f)) {
-                                Text("Student Tier", modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp), style = MaterialTheme.typography.labelSmall, color = EmeraldLight, fontSize = 10.sp)
+                                Text(if (profile.isDemoMode) "Demo Profile" else "Verified User", modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp), style = MaterialTheme.typography.labelSmall, color = EmeraldLight, fontSize = 10.sp)
                             }
                         }
                         Text(profile.email, style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                    }
+                }
+            }
+        }
+
+        // Clerk Authentication & Session Security Card
+        item {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                .border(1.dp, EmeraldPrimary.copy(alpha = 0.4f), RoundedCornerShape(16.dp)),
+                colors = CardDefaults.cardColors(containerColor = DarkSurfaceCard)
+            ) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Icon(Icons.Default.Lock, contentDescription = null, tint = EmeraldLight, modifier = Modifier.size(18.dp))
+                            Text("Clerk Identity & Security", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = TextPrimary)
+                        }
+                        Surface(shape = RoundedCornerShape(6.dp), color = EmeraldContainer.copy(alpha = 0.6f)) {
+                            Text(
+                                text = profile.clerkSessionStatus.uppercase(),
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = EmeraldLight,
+                                fontSize = 10.sp
+                            )
+                        }
+                    }
+
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = DarkSurfaceElevated,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("Auth Provider", style = MaterialTheme.typography.labelSmall, color = TextMuted)
+                                Text(profile.authProvider, style = MaterialTheme.typography.labelSmall, color = TextPrimary, fontWeight = FontWeight.Bold)
+                            }
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("Clerk User ID", style = MaterialTheme.typography.labelSmall, color = TextMuted)
+                                Text(profile.clerkUserId.take(16) + "...", style = MaterialTheme.typography.labelSmall, color = TextSecondary)
+                            }
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("Instance Domain", style = MaterialTheme.typography.labelSmall, color = TextMuted)
+                                Text("tolerant-anemone-6963", style = MaterialTheme.typography.labelSmall, color = EmeraldLight)
+                            }
+                        }
+                    }
+
+                    OutlinedButton(
+                        onClick = {
+                            onSignOut()
+                            Toast.makeText(context, "Signed out of Clerk session", Toast.LENGTH_SHORT).show()
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(10.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, RedRisk.copy(alpha = 0.6f)),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = RedRisk)
+                    ) {
+                        Icon(Icons.Default.Logout, contentDescription = null, tint = RedRisk, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Sign Out of Clerk Session", fontWeight = FontWeight.SemiBold, color = RedRisk)
                     }
                 }
             }

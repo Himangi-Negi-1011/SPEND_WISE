@@ -3,6 +3,8 @@ package com.example.ui
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.data.auth.ClerkAuthResult
+import com.example.data.auth.ClerkAuthService
 import com.example.data.model.AiInsight
 import com.example.data.model.BudgetEntity
 import com.example.data.model.CopilotMessage
@@ -79,6 +81,27 @@ class SpendWiseViewModel(application: Application) : AndroidViewModel(applicatio
     val aiInsights: StateFlow<List<AiInsight>> = repository.aiInsights
     val isGeneratingAi: StateFlow<Boolean> = repository.isGeneratingAi
 
+    // Authentication & Clerk State
+    private val _authLoading = MutableStateFlow(false)
+    val authLoading: StateFlow<Boolean> = _authLoading.asStateFlow()
+
+    private val _authError = MutableStateFlow<String?>(null)
+    val authError: StateFlow<String?> = _authError.asStateFlow()
+
+    // Dashboard Interactive Filtering & Horizon
+    private val _timeHorizon = MutableStateFlow("THIS_MONTH") // "THIS_MONTH", "LAST_30_DAYS", "THIS_WEEK"
+    val timeHorizon: StateFlow<String> = _timeHorizon.asStateFlow()
+
+    private val _selectedDayIndex = MutableStateFlow<Int?>(null)
+    val selectedDayIndex: StateFlow<Int?> = _selectedDayIndex.asStateFlow()
+
+    // Resolved Risk Alerts and Applied Opportunities
+    private val _resolvedAlertIds = MutableStateFlow<Set<String>>(emptySet())
+    val resolvedAlertIds: StateFlow<Set<String>> = _resolvedAlertIds.asStateFlow()
+
+    private val _appliedOpportunityIds = MutableStateFlow<Set<String>>(emptySet())
+    val appliedOpportunityIds: StateFlow<Set<String>> = _appliedOpportunityIds.asStateFlow()
+
     // Search and Filtering
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
@@ -113,14 +136,16 @@ class SpendWiseViewModel(application: Application) : AndroidViewModel(applicatio
     val riskAlerts: StateFlow<List<RiskAlert>> = combine(
         repository.transactions,
         repository.budgets,
-        repository.userProfile
-    ) { txList, bgList, profile ->
-        RiskDetectionEngine.analyze(
+        repository.userProfile,
+        _resolvedAlertIds
+    ) { txList, bgList, profile, resolvedIds ->
+        val raw = RiskDetectionEngine.analyze(
             transactions = txList,
             budgets = bgList,
             monthlyIncome = profile.monthlyIncome,
             targetBudget = profile.targetBudget
         )
+        raw.filterNot { resolvedIds.contains(it.id) }
     }.stateIn(
         viewModelScope,
         SharingStarted.WhileSubscribed(5000),
@@ -131,14 +156,16 @@ class SpendWiseViewModel(application: Application) : AndroidViewModel(applicatio
         analytics,
         repository.transactions,
         repository.budgets,
-        repository.userProfile
-    ) { an, txList, bgList, profile ->
-        SavingOpportunitiesEngine.evaluate(
+        repository.userProfile,
+        _appliedOpportunityIds
+    ) { an, txList, bgList, profile, appliedIds ->
+        val raw = SavingOpportunitiesEngine.evaluate(
             analytics = an,
             transactions = txList,
             budgets = bgList,
             currencySymbol = profile.currencySymbol
         )
+        raw.filterNot { appliedIds.contains(it.id) }
     }.stateIn(
         viewModelScope,
         SharingStarted.WhileSubscribed(5000),
@@ -382,6 +409,183 @@ class SpendWiseViewModel(application: Application) : AndroidViewModel(applicatio
             _copilotMessages.value = _copilotMessages.value + botMsg
             _isCopilotThinking.value = false
         }
+    }
+
+    // Clerk Authentication Actions
+    fun signInWithClerk(email: String, password: String, onSuccess: () -> Unit) {
+        viewModelScope.launch {
+            _authLoading.value = true
+            _authError.value = null
+            when (val result = ClerkAuthService.signInWithEmail(email, password)) {
+                is ClerkAuthResult.Success -> {
+                    val user = result.user
+                    val updatedProfile = userProfile.value.copy(
+                        name = user.fullName,
+                        email = user.email,
+                        clerkUserId = user.id,
+                        authProvider = "Clerk Email",
+                        clerkSessionStatus = "Active (Clerk Dev)",
+                        avatarInitials = user.initials,
+                        isAuthenticated = true,
+                        isDemoMode = false
+                    )
+                    repository.updateUserProfile(updatedProfile)
+                    _authLoading.value = false
+                    onSuccess()
+                }
+                is ClerkAuthResult.Error -> {
+                    _authLoading.value = false
+                    _authError.value = result.message
+                }
+            }
+        }
+    }
+
+    fun signUpWithClerk(
+        email: String,
+        password: String,
+        firstName: String,
+        lastName: String,
+        onSuccess: () -> Unit
+    ) {
+        viewModelScope.launch {
+            _authLoading.value = true
+            _authError.value = null
+            when (val result = ClerkAuthService.signUpWithEmail(email, password, firstName, lastName)) {
+                is ClerkAuthResult.Success -> {
+                    val user = result.user
+                    val updatedProfile = userProfile.value.copy(
+                        name = user.fullName,
+                        email = user.email,
+                        clerkUserId = user.id,
+                        authProvider = "Clerk Email",
+                        clerkSessionStatus = "Active (Clerk Dev)",
+                        avatarInitials = user.initials,
+                        isAuthenticated = true,
+                        isDemoMode = false
+                    )
+                    repository.updateUserProfile(updatedProfile)
+                    _authLoading.value = false
+                    onSuccess()
+                }
+                is ClerkAuthResult.Error -> {
+                    _authLoading.value = false
+                    _authError.value = result.message
+                }
+            }
+        }
+    }
+
+    fun signInWithSocial(provider: String, onSuccess: () -> Unit) {
+        viewModelScope.launch {
+            _authLoading.value = true
+            _authError.value = null
+            when (val result = ClerkAuthService.signInWithSocial(provider)) {
+                is ClerkAuthResult.Success -> {
+                    val user = result.user
+                    val updatedProfile = userProfile.value.copy(
+                        name = user.fullName,
+                        email = user.email,
+                        clerkUserId = user.id,
+                        authProvider = "Clerk SSO ($provider)",
+                        clerkSessionStatus = "Active (Clerk Dev)",
+                        avatarInitials = user.initials,
+                        isAuthenticated = true,
+                        isDemoMode = false
+                    )
+                    repository.updateUserProfile(updatedProfile)
+                    _authLoading.value = false
+                    onSuccess()
+                }
+                is ClerkAuthResult.Error -> {
+                    _authLoading.value = false
+                    _authError.value = result.message
+                }
+            }
+        }
+    }
+
+    fun signInAsVerifiedDemo(onSuccess: () -> Unit) {
+        val demoUser = ClerkAuthService.getVerifiedDemoUser()
+        val updatedProfile = userProfile.value.copy(
+            name = demoUser.fullName,
+            email = demoUser.email,
+            clerkUserId = demoUser.id,
+            authProvider = "Clerk Verified Pro",
+            clerkSessionStatus = "Active (Clerk Dev)",
+            avatarInitials = demoUser.initials,
+            isAuthenticated = true,
+            isDemoMode = true,
+            tier = "SpendWise Pro"
+        )
+        repository.updateUserProfile(updatedProfile)
+        onSuccess()
+    }
+
+    fun signOutClerk() {
+        val resetProfile = userProfile.value.copy(
+            isAuthenticated = false,
+            clerkSessionStatus = "Signed Out"
+        )
+        repository.updateUserProfile(resetProfile)
+        navigateTo(SpendWiseScreen.AUTH)
+    }
+
+    fun clearAuthError() {
+        _authError.value = null
+    }
+
+    // Dashboard Interactive Filtering & Actions
+    fun setTimeHorizon(horizon: String) {
+        _timeHorizon.value = horizon
+    }
+
+    fun setSelectedDayIndex(index: Int?) {
+        _selectedDayIndex.value = if (_selectedDayIndex.value == index) null else index
+    }
+
+    fun resolveRiskAlert(alertId: String) {
+        _resolvedAlertIds.value = _resolvedAlertIds.value + alertId
+    }
+
+    fun applySavingOpportunity(opp: SavingOpportunity) {
+        viewModelScope.launch {
+            _appliedOpportunityIds.value = _appliedOpportunityIds.value + opp.id
+            // If it suggests saving on a category, tighten or set budget or contribute to goal
+            val existingBudget = budgets.value.find { it.category.equals(opp.category, true) }
+            if (existingBudget != null && opp.potentialMonthlySavings > 0) {
+                val newLimit = (existingBudget.monthlyLimit - opp.potentialMonthlySavings).coerceAtLeast(100.0)
+                repository.saveBudget(existingBudget.copy(monthlyLimit = newLimit))
+            }
+        }
+    }
+
+    fun quickAddExpense(merchant: String, amount: Double, category: String) {
+        addTransaction(
+            merchant = merchant,
+            amount = amount,
+            type = "EXPENSE",
+            category = category,
+            notes = "Quick-logged from SpendWise Dashboard"
+        )
+    }
+
+    fun quickContributeToGoal(goalId: String, amount: Double) {
+        contributeToGoal(goalId, amount)
+    }
+
+    fun clearCopilotHistory() {
+        _copilotMessages.value = listOf(
+            CopilotMessage(
+                text = "Chat history refreshed. How can I assist with your finances today?",
+                isUser = false,
+                suggestedPrompts = listOf(
+                    "Where did I spend the most this month?",
+                    "What subscriptions do I have?",
+                    "How can I reach my savings goal faster?"
+                )
+            )
+        )
     }
 
     fun refreshAi() {

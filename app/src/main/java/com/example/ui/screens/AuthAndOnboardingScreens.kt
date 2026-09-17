@@ -29,15 +29,23 @@ import com.example.ui.theme.*
 
 @Composable
 fun AuthScreen(
-    onAuthSuccess: () -> Unit,
-    onContinueGuest: () -> Unit
+    isLoading: Boolean = false,
+    errorMessage: String? = null,
+    onSignInEmail: (email: String, password: String) -> Unit = { _, _ -> },
+    onSignUpEmail: (email: String, password: String, firstName: String, lastName: String) -> Unit = { _, _, _, _ -> },
+    onSignInSocial: (provider: String) -> Unit = {},
+    onContinueGuest: () -> Unit = {},
+    onClearError: () -> Unit = {}
 ) {
     var isSignUp by remember { mutableStateOf(false) }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var firstName by remember { mutableStateOf("") }
+    var lastName by remember { mutableStateOf("") }
     var isPasswordVisible by remember { mutableStateOf(false) }
-    var error by remember { mutableStateOf<String?>(null) }
-    var isLoading by remember { mutableStateOf(false) }
+    var localValidationMsg by remember { mutableStateOf<String?>(null) }
+
+    val displayError = errorMessage ?: localValidationMsg
 
     Column(
         modifier = Modifier
@@ -68,11 +76,13 @@ fun AuthScreen(
         Spacer(modifier = Modifier.height(16.dp))
 
         Text(
-            text = if (isSignUp) "Create your Account" else "Welcome to SpendWise",
+            text = if (isSignUp) "Create Clerk Account" else "Welcome to SpendWise",
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.ExtraBold,
             color = TextPrimary
         )
+
+        Spacer(modifier = Modifier.height(6.dp))
 
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -83,7 +93,7 @@ fun AuthScreen(
                 color = EmeraldContainer.copy(alpha = 0.4f)
             ) {
                 Text(
-                    text = "SECURED BY CLERK",
+                    text = "CLERK AUTHENTICATION",
                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                     style = MaterialTheme.typography.labelSmall,
                     fontSize = 10.sp,
@@ -92,7 +102,7 @@ fun AuthScreen(
                 )
             }
             Text(
-                text = "• Zero-knowledge ledger encryption",
+                text = "tolerant-anemone-6963",
                 style = MaterialTheme.typography.labelSmall,
                 color = TextSecondary
             )
@@ -111,13 +121,14 @@ fun AuthScreen(
                 modifier = Modifier.padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                // Social Auth Buttons (Clerk style)
+                // Social Auth Buttons (Clerk SSO OAuth flows)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     OutlinedButton(
-                        onClick = onAuthSuccess,
+                        onClick = { onSignInSocial("Google") },
+                        enabled = !isLoading,
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(10.dp),
                         border = androidx.compose.foundation.BorderStroke(1.dp, DarkBorder),
@@ -127,7 +138,8 @@ fun AuthScreen(
                         Text("Google", fontWeight = FontWeight.Bold, fontSize = 13.sp)
                     }
                     OutlinedButton(
-                        onClick = onAuthSuccess,
+                        onClick = { onSignInSocial("Apple") },
+                        enabled = !isLoading,
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(10.dp),
                         border = androidx.compose.foundation.BorderStroke(1.dp, DarkBorder),
@@ -137,7 +149,8 @@ fun AuthScreen(
                         Text("Apple", fontWeight = FontWeight.Bold, fontSize = 13.sp)
                     }
                     OutlinedButton(
-                        onClick = onAuthSuccess,
+                        onClick = { onSignInSocial("GitHub") },
+                        enabled = !isLoading,
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(10.dp),
                         border = androidx.compose.foundation.BorderStroke(1.dp, DarkBorder),
@@ -153,7 +166,7 @@ fun AuthScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     HorizontalDivider(modifier = Modifier.weight(1f), color = DarkBorder)
-                    Text(" or with email ", style = MaterialTheme.typography.labelSmall, color = TextMuted)
+                    Text(" or with email credentials ", style = MaterialTheme.typography.labelSmall, color = TextMuted)
                     HorizontalDivider(modifier = Modifier.weight(1f), color = DarkBorder)
                 }
 
@@ -166,7 +179,11 @@ fun AuthScreen(
                         .padding(4.dp)
                 ) {
                     Button(
-                        onClick = { isSignUp = false; error = null },
+                        onClick = {
+                            isSignUp = false
+                            localValidationMsg = null
+                            onClearError()
+                        },
                         modifier = Modifier.weight(1f),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = if (!isSignUp) EmeraldPrimary else Color.Transparent,
@@ -177,7 +194,11 @@ fun AuthScreen(
                         Text("Sign In", fontWeight = FontWeight.Bold)
                     }
                     Button(
-                        onClick = { isSignUp = true; error = null },
+                        onClick = {
+                            isSignUp = true
+                            localValidationMsg = null
+                            onClearError()
+                        },
                         modifier = Modifier.weight(1f),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = if (isSignUp) EmeraldPrimary else Color.Transparent,
@@ -189,11 +210,49 @@ fun AuthScreen(
                     }
                 }
 
+                if (isSignUp) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        OutlinedTextField(
+                            value = firstName,
+                            onValueChange = { firstName = it; localValidationMsg = null },
+                            label = { Text("First Name") },
+                            singleLine = true,
+                            modifier = Modifier.weight(1f),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = EmeraldPrimary,
+                                unfocusedBorderColor = DarkBorder,
+                                focusedTextColor = TextPrimary,
+                                unfocusedTextColor = TextPrimary
+                            )
+                        )
+                        OutlinedTextField(
+                            value = lastName,
+                            onValueChange = { lastName = it; localValidationMsg = null },
+                            label = { Text("Last Name") },
+                            singleLine = true,
+                            modifier = Modifier.weight(1f),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = EmeraldPrimary,
+                                unfocusedBorderColor = DarkBorder,
+                                focusedTextColor = TextPrimary,
+                                unfocusedTextColor = TextPrimary
+                            )
+                        )
+                    }
+                }
+
                 OutlinedTextField(
                     value = email,
-                    onValueChange = { email = it; error = null },
+                    onValueChange = {
+                        email = it
+                        localValidationMsg = null
+                        onClearError()
+                    },
                     label = { Text("Email address") },
-                    placeholder = { Text("alex.rivera@example.com") },
+                    placeholder = { Text("alex.rivera@spendwise.app") },
                     singleLine = true,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -208,7 +267,11 @@ fun AuthScreen(
 
                 OutlinedTextField(
                     value = password,
-                    onValueChange = { password = it; error = null },
+                    onValueChange = {
+                        password = it
+                        localValidationMsg = null
+                        onClearError()
+                    },
                     label = { Text("Password") },
                     singleLine = true,
                     visualTransformation = if (isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
@@ -232,22 +295,72 @@ fun AuthScreen(
                     )
                 )
 
-                if (error != null) {
-                    Text(text = error!!, color = RedRisk, style = MaterialTheme.typography.labelSmall)
+                // Quick autofill chip for testing ease
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Fill demo credentials",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = EmeraldLight,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.clickable {
+                            email = "alex.rivera@spendwise.app"
+                            password = "SpendWiseMasterPassword2026!"
+                            localValidationMsg = null
+                        }
+                    )
+                    Text(
+                        text = "Clerk SSL 256-bit",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = TextMuted
+                    )
+                }
+
+                if (displayError != null) {
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = RedContainer.copy(alpha = 0.35f),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, RedRisk.copy(alpha = 0.5f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(Icons.Default.ErrorOutline, contentDescription = null, tint = RedRisk, modifier = Modifier.size(16.dp))
+                            Text(text = displayError, color = Color(0xFFFECACA), style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
                 }
 
                 Button(
                     onClick = {
-                        if (email.isBlank() || !email.contains("@")) {
-                            error = "Please enter a valid email address"
+                        val trimmedEmail = email.trim()
+                        if (trimmedEmail.isBlank() || !trimmedEmail.contains("@")) {
+                            localValidationMsg = "Please enter a valid email address"
                             return@Button
                         }
                         if (password.length < 6) {
-                            error = "Password must be at least 6 characters"
+                            localValidationMsg = "Password must be at least 6 characters"
                             return@Button
                         }
-                        onAuthSuccess()
+                        localValidationMsg = null
+                        if (isSignUp) {
+                            onSignUpEmail(
+                                trimmedEmail,
+                                password,
+                                firstName.ifBlank { "Alex" },
+                                lastName.ifBlank { "Rivera" }
+                            )
+                        } else {
+                            onSignInEmail(trimmedEmail, password)
+                        }
                     },
+                    enabled = !isLoading,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(48.dp)
@@ -255,18 +368,29 @@ fun AuthScreen(
                     colors = ButtonDefaults.buttonColors(containerColor = EmeraldPrimary),
                     shape = RoundedCornerShape(10.dp)
                 ) {
-                    Text(
-                        text = if (isSignUp) "Create Clerk Account" else "Sign In with Clerk",
-                        fontWeight = FontWeight.Bold,
-                        color = DarkBackground,
-                        fontSize = 15.sp
-                    )
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            color = DarkBackground,
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Verifying with Clerk...", fontWeight = FontWeight.Bold, color = DarkBackground)
+                    } else {
+                        Text(
+                            text = if (isSignUp) "Create Clerk Account" else "Sign In with Clerk",
+                            fontWeight = FontWeight.Bold,
+                            color = DarkBackground,
+                            fontSize = 15.sp
+                        )
+                    }
                 }
 
                 HorizontalDivider(color = DarkBorder)
 
                 OutlinedButton(
                     onClick = onContinueGuest,
+                    enabled = !isLoading,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(48.dp)
